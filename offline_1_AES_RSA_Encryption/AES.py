@@ -3,9 +3,9 @@ from bitvectordemo import *
 import time
 
 info_keys = {
-    16: (10, 4),
-    24: (12, 6),
-    32: (14, 8),
+    16: (10, 4, 44),
+    24: (8, 6, 52),
+    32: (7, 8, 60),
 }
 
 # string to tuple of hexes
@@ -37,13 +37,13 @@ def block_g(w_, rc):
 
 
 # print byte array in hex
-def print_in_hex(byte_arr, length):
+def print_in_hex(byte_arr):
     res = ""
     count = 0
     for b in byte_arr:
         res += "%02x " % b
         count += 1
-        if count == length:
+        if count == 16:
             res += "\n"
             count = 0;   
     print(res.upper())
@@ -59,16 +59,14 @@ def rc(round):
 
 
 # key scheduling/expansion
-round_keys = tuple()
 def key_scheduling(key):
-    global round_keys
     round_keys = str_to_hex(key)
-    rounds, w_len = info_keys[len(key)]
+    key_count = len(key)/4
+    rounds, w_len, max_key = info_keys[len(key)]
     start = 0
 
     for i in range(rounds):
         w_0 = round_keys[start:4+start]
-        print_in_hex(w_0, 10)
         start += 4 * (w_len-1) #goes to last word
         w_n = round_keys[start:4+start]
         start -= 4 * (w_len-2) #comes back
@@ -76,14 +74,21 @@ def key_scheduling(key):
         g = block_g(w_n, rc(i+1))
         w_4 = bytes([aa ^ bb for aa, bb in zip(g, w_0)])
         round_keys += w_4
+        key_count += 1 #increase key count
+
+        if key_count == max_key:
+            return round_keys
 
         for j in range(w_len-1):
             w_j = bytes([aa ^ bb for aa, bb in zip(w_4, round_keys[start:4+start])])
             w_4 = w_j
             round_keys += w_j
             start += 4
+
+            key_count += 1 #increase key count
+            if key_count == max_key:
+                return round_keys
     
-    print_in_hex(round_keys, len(key))
     return round_keys
     
 
@@ -96,7 +101,8 @@ if __name__ == "__main__":
         print(f"Invalid size of key: {len_k}!")
     else:
         start = time.time()
-        key_scheduling(key)
+        round_keys = key_scheduling(key)
+        print_in_hex(round_keys)
         stop = time.time()
         print(f"Elapsed time: {stop - start}")
 
