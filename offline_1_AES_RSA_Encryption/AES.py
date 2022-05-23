@@ -1,3 +1,4 @@
+from turtle import st
 from BitVector import *
 from bitvectordemo import *
 import time
@@ -7,6 +8,14 @@ info_keys = {
     24: (8, 6, 52),
     32: (7, 8, 60),
 }
+round_len = {
+    176: 9,
+    208: 11,
+    240: 13,
+}
+BLOCK_SIZE = 16
+PADDER_ASCII = 4 #diamond
+
 
 # string to tuple of hexes
 def str_to_hex(key):
@@ -21,12 +30,14 @@ def circular_left_shift(w_):
     w_[-1] = first
     return w_
 
+
 def byte_sub(w_):
     for i in range(len(w_)):
         r = w_[i] >> 4;
         c = w_[i] & 0b00001111;
         w_[i] = Sbox[r*16+c]
     return w_
+
 
 # the 'g' function
 def block_g(w_, rc):
@@ -43,10 +54,11 @@ def print_in_hex(byte_arr):
     for b in byte_arr:
         res += "%02x " % b
         count += 1
-        if count == 16:
+        if count == BLOCK_SIZE:
             res += "\n"
             count = 0;   
     print(res.upper())
+
 
 # calculates round constant
 def rc(round):
@@ -90,20 +102,88 @@ def key_scheduling(key):
                 return round_keys
     
     return round_keys
+
+
+# padding
+def padd_text(text):
+    i, count = PADDER_ASCII, BLOCK_SIZE - len(text)
+    text += bytearray((i,)) * count
+    return text
+
+
+def add_rc(text, keys):
+    for i in range(len(keys)):
+        text[i] += keys[i]
+    return text
+
+
+def shift_row(text):
+    text[1], text[5], text[9], text[13] = text[5], text[9], text[13], text[1]
+    text[2], text[6], text[10], text[14] = text[10], text[14], text[2], text[6]
+    text[3], text[7], text[11], text[15] = text[15], text[3], text[7], text[11]
+    return text
+
+
+def mix_col(text):
+    text_mat = []
+    index = 0
+    for i in range(4):
+        row = []
+        for j in range(4):
+            row.append(BitVector(intVal = text, size = 8))
+        text_mat.append(row)
+
     
+    return text
+
+
+def AES_Encrypt(text, round_keys):
+    rounds = round_len[len(round_keys)]
+    start = 0
+    cipher_text = add_rc(text, round_keys[start:start+BLOCK_SIZE])
+    start += BLOCK_SIZE
+
+    for i in range(rounds):
+        cipher_text = mix_col(shift_row(byte_sub(cipher_text)))
+        cipher_text = add_rc(cipher_text, round_keys[start:start+BLOCK_SIZE])
+        start += BLOCK_SIZE
+
+    cipher_text = shift_row(byte_sub(cipher_text))
+    cipher_text = add_rc(cipher_text, round_keys[start:start+BLOCK_SIZE])
+    return cipher_text
+
+
+def AES_Encryption(plain_text, round_keys):
+    plain_text = str_to_hex(plain_text)
+    factor = len(plain_text)/BLOCK_SIZE
+    cipher_text = bytearray()
+    start = 0
+    
+    for i in range(int(factor)):
+        cipher_text += AES_Encrypt(plain_text[start:start+BLOCK_SIZE], round_keys)
+        start += BLOCK_SIZE
+    
+    if factor > int(factor):
+        padded_text = padd_text(plain_text[start:start+BLOCK_SIZE])
+        cipher_text += AES_Encrypt(padded_text, round_keys)
+    
+    return cipher_text
+
 
 if __name__ == "__main__":
     print("Enter key:")
     key = input()
-    len_k = len(key)
+    # len_k = len(key)
     
-    if len_k not in [16, 24, 32]:
-        print(f"Invalid size of key: {len_k}!")
-    else:
-        start = time.time()
-        round_keys = key_scheduling(key)
-        print_in_hex(round_keys)
-        stop = time.time()
-        print(f"Elapsed time: {stop - start}")
+    # if len_k not in [16, 24, 32]:
+    #     print(f"Invalid size of key: {len_k}!")
+    # else:
+    #     start = time.time()
+    #     round_keys = key_scheduling(key)
+    #     print_in_hex(round_keys)
+    #     stop = time.time()
+    #     print(f"Elapsed time: {stop - start}")
+
+    print(AES_Encryption(key, "wadup"))
 
     
