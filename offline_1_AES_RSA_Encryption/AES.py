@@ -1,4 +1,3 @@
-from turtle import st
 from BitVector import *
 from bitvectordemo import *
 import time
@@ -113,7 +112,7 @@ def padd_text(text):
 
 def add_rc(text, keys):
     for i in range(len(keys)):
-        text[i] += keys[i]
+        text[i] ^= keys[i]
     return text
 
 
@@ -126,18 +125,29 @@ def shift_row(text):
 
 def mix_col(text):
     text_mat = []
-    index = 0
-    for i in range(4):
+    start = 0
+    for j in range(4):
         row = []
-        for j in range(4):
-            row.append(BitVector(intVal = text, size = 8))
+        for i in range(4):
+            row.append(BitVector(intVal=text[i+start], size=8))
+        start += 4
         text_mat.append(row)
+    
+    text_mat = list(map(list, zip(*text_mat))) # transpose
+    AES_modulus = BitVector(bitstring='100011011')
 
+    for i in range(4):
+        for j in range(4):
+            text[i+4*j] = 0b00000000
+            for k in range(4):
+                ans = Mixer[i][k].gf_multiply_modular(text_mat[k][j], AES_modulus, 8)
+                text[i+4*j] ^= ans.int_val()
     
     return text
 
 
 def AES_Encrypt(text, round_keys):
+    print(len(round_keys))
     rounds = round_len[len(round_keys)]
     start = 0
     cipher_text = add_rc(text, round_keys[start:start+BLOCK_SIZE])
@@ -172,18 +182,19 @@ def AES_Encryption(plain_text, round_keys):
 
 if __name__ == "__main__":
     print("Enter key:")
-    key = input()
-    # len_k = len(key)
+    key = "Thats my Kung Fu"
+    mix_col(str_to_hex(key))
+    len_k = len(key)
     
-    # if len_k not in [16, 24, 32]:
-    #     print(f"Invalid size of key: {len_k}!")
-    # else:
-    #     start = time.time()
-    #     round_keys = key_scheduling(key)
-    #     print_in_hex(round_keys)
-    #     stop = time.time()
-    #     print(f"Elapsed time: {stop - start}")
-
-    print(AES_Encryption(key, "wadup"))
+    if len_k not in [16, 24, 32]:
+        print(f"Invalid size of key: {len_k}!")
+    else:
+        start = time.time()
+        round_keys = key_scheduling(key)
+        print_in_hex(round_keys)
+        stop = time.time()
+        print(f"Elapsed time: {stop - start}")
+        plain_text = "Two One Nine Two"
+        print_in_hex(AES_Encryption(plain_text, round_keys))
 
     
