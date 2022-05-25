@@ -1,7 +1,10 @@
+from pydoc import plain
 from BitVector import *
 from bitvectordemo import *
 import time
 
+
+# required values ================================================
 info_keys = {
     16: (10, 4, 44),
     24: (8, 6, 52),
@@ -16,6 +19,7 @@ BLOCK_SIZE = 16
 PADDER_ASCII = 4 #diamond
 
 
+# KEY EXPANSION START ================================================
 # string to tuple of hexes
 def str_to_hex(key):
     key_list = bytes(key, 'ascii')
@@ -101,8 +105,12 @@ def key_scheduling(key):
                 return round_keys
     
     return round_keys
+# KEY EXPANSION END ================================================
 
 
+
+
+# AES ENCRYPTION START ================================================
 # padding
 def padd_text(text):
     i, count = PADDER_ASCII, BLOCK_SIZE - len(text)
@@ -147,7 +155,6 @@ def mix_col(text):
 
 
 def AES_Encrypt(text, round_keys):
-    print(len(round_keys))
     rounds = round_len[len(round_keys)]
     start = 0
     cipher_text = add_rc(text, round_keys[start:start+BLOCK_SIZE])
@@ -179,6 +186,80 @@ def AES_Encryption(plain_text, round_keys):
     
     return cipher_text
 
+# AES ENCRYPTION END ================================================
+
+
+
+# AES DECRYPTION START ================================================
+def inv_shift_row(text):
+    text[1], text[5], text[9], text[13] = text[13], text[1], text[5], text[9]
+    text[2], text[6], text[10], text[14] = text[10], text[14], text[2], text[6]
+    text[3], text[7], text[11], text[15] = text[7], text[11], text[15], text[3]
+    return text
+
+
+def inv_mix_col(text):
+    text_mat = []
+    start = 0
+    for j in range(4):
+        row = []
+        for i in range(4):
+            row.append(BitVector(intVal=text[i+start], size=8))
+        start += 4
+        text_mat.append(row)
+    
+    text_mat = list(map(list, zip(*text_mat))) # transpose
+    AES_modulus = BitVector(bitstring='100011011')
+
+    for i in range(4):
+        for j in range(4):
+            text[i+4*j] = 0b00000000
+            for k in range(4):
+                ans = InvMixer[i][k].gf_multiply_modular(text_mat[k][j], AES_modulus, 8)
+                text[i+4*j] ^= ans.int_val()
+    
+    return text
+
+
+def inv_byte_sub(w_):
+    for i in range(len(w_)):
+        r = w_[i] >> 4;
+        c = w_[i] & 0b00001111;
+        w_[i] = InvSbox[r*16+c]
+    return w_
+
+
+def AES_Decrypt(text, round_keys):
+    rounds = round_len[len(round_keys)]
+    start = len(round_keys)-BLOCK_SIZE
+    plain_text = add_rc(text, round_keys[start:start+BLOCK_SIZE])
+    start -= BLOCK_SIZE
+
+    for i in range(rounds):
+        plain_text = inv_byte_sub(inv_shift_row(plain_text))
+        plain_text = add_rc(plain_text, round_keys[start:start+BLOCK_SIZE])        
+        plain_text = inv_mix_col(plain_text)
+        start -= BLOCK_SIZE
+
+    plain_text = inv_byte_sub(inv_shift_row(plain_text))
+    plain_text = add_rc(plain_text, round_keys[start:start+BLOCK_SIZE])
+    return plain_text
+
+
+def AES_Decryption(cipher_text, round_keys):
+    #cipher_text = str_to_hex(cipher_text)
+    factor = len(cipher_text)/BLOCK_SIZE
+    plain_text = bytearray()
+    start = 0
+    
+    for i in range(int(factor)):
+        plain_text += AES_Decrypt(cipher_text[start:start+BLOCK_SIZE], round_keys)
+        start += BLOCK_SIZE
+    
+    return plain_text
+
+# AES DECRYPTION END ================================================
+
 
 if __name__ == "__main__":
     print("Enter key:")
@@ -195,6 +276,11 @@ if __name__ == "__main__":
         stop = time.time()
         print(f"Elapsed time: {stop - start}")
         plain_text = "Two One Nine Two"
-        print_in_hex(AES_Encryption(plain_text, round_keys))
+        print_in_hex(str_to_hex(plain_text))
+        cipher = AES_Encryption(plain_text, round_keys)
+        print_in_hex(cipher)
+        plain = AES_Decryption(cipher, round_keys)
+        print("plain is:")
+        print_in_hex(plain)
 
     
