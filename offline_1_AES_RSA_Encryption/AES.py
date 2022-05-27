@@ -1,4 +1,3 @@
-from pydoc import plain
 from BitVector import *
 from bitvectordemo import *
 import time
@@ -55,12 +54,14 @@ def print_in_hex(byte_arr):
     res = ""
     count = 0
     for b in byte_arr:
-        res += "%02x " % b
+        res += "%02x" % b
         count += 1
         if count == BLOCK_SIZE:
             res += "\n"
             count = 0;   
-    print(res.upper())
+    if(res[-1] == "\n"):
+        res = res.rstrip("\n")
+    print(res+" [IN HEX]")
 
 
 # calculates round constant
@@ -247,7 +248,9 @@ def AES_Decrypt(text, round_keys):
 
 
 def AES_Decryption(cipher_text, round_keys):
-    #cipher_text = str_to_hex(cipher_text)
+    if type(cipher) is not bytearray:
+        cipher_text = str_to_hex(cipher_text)
+    
     factor = len(cipher_text)/BLOCK_SIZE
     plain_text = bytearray()
     start = 0
@@ -261,26 +264,56 @@ def AES_Decryption(cipher_text, round_keys):
 # AES DECRYPTION END ================================================
 
 
+
+
+
 if __name__ == "__main__":
+    print("Enter plain text:")
+    plain_text = input()
     print("Enter key:")
-    key = "Thats my Kung Fu"
-    mix_col(str_to_hex(key))
+    key = input()
     len_k = len(key)
     
     if len_k not in [16, 24, 32]:
         print(f"Invalid size of key: {len_k}!")
     else:
+        print("\n\nPlain Text:")
+        print(plain_text+" [IN ASCII]")
+        print_in_hex(str_to_hex(plain_text))
+        print("")
+        
+        print("Key:")
+        print(key+" [IN ASCII]")
+        print_in_hex(str_to_hex(key))
+        print("")
+
         start = time.time()
         round_keys = key_scheduling(key)
-        print_in_hex(round_keys)
+        # print_in_hex(round_keys)
         stop = time.time()
-        print(f"Elapsed time: {stop - start}")
-        plain_text = "Two One Nine Two"
-        print_in_hex(str_to_hex(plain_text))
+        key_gen_time = stop - start
+
+        start = time.time()
         cipher = AES_Encryption(plain_text, round_keys)
+        cipher_time = time.time() - start
+        print("Cipher Text:")
         print_in_hex(cipher)
+        cipher_text = "".join(map(chr, cipher))
+        print(cipher_text, end=" [IN ASCII]\n\n")
+
+        start = time.time()
         plain = AES_Decryption(cipher, round_keys)
-        print("plain is:")
+        decipher_time = time.time() - start
+        print("Deciphered Text:")
         print_in_hex(plain)
+        
+        plain = ("".join(map(chr, plain))).rstrip(chr(4))
+        print(plain, end=" [IN ASCII]\n\n")
+
+        print("Execution Time:")
+        print(f"Key Scheduling: {key_gen_time} seconds")
+        print(f"Encryption Time: {cipher_time} seconds")
+        print(f"Decryption Time: {decipher_time} seconds")                
+        
 
     
