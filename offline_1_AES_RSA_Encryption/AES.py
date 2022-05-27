@@ -1,3 +1,4 @@
+import string
 from BitVector import *
 from bitvectordemo import *
 import time
@@ -248,7 +249,7 @@ def AES_Decrypt(text, round_keys):
 
 
 def AES_Decryption(cipher_text, round_keys):
-    if type(cipher) is not bytearray:
+    if type(cipher_text) is str:
         cipher_text = str_to_hex(cipher_text)
     
     factor = len(cipher_text)/BLOCK_SIZE
